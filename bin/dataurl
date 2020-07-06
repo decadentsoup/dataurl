@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require_relative '../lib/dataurl'
+require 'optparse'
+
+mime_type = nil
+chomp = false
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME} [FILENAME]"
+
+  opts.on('-mMIME', '--mime-type=MIME',
+          'Set the MIME type (default: autodetect)') do |value|
+    mime_type = value
+  end
+
+  opts.on('-c', '--chomp',
+          'Chomp the final newline (default: disabled)') do |value|
+    chomp = value
+  end
+end.parse!
+
+filename = ARGV[0]
+
+if mime_type.nil?
+  begin
+    if filename.nil? || (mime_type = DataURL.guess_mime(filename)).nil?
+      abort('Failed to guess MIME type. Please specify with the -m option.')
+    end
+  rescue Errno::ENOENT
+    abort('/etc/mime.types does not exist. Please specify the type with -m.')
+  end
+end
+
+content = filename.nil? ? $stdin.read : IO.binread(filename)
+content.chomp! if chomp
+
+puts(DataURL.generate(mime_type: mime_type, content: content))
